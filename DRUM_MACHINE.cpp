@@ -19,6 +19,13 @@
 
 void SystemClock_Config(void);
 void Init_LEDs(void);
+static void MX_GPIO_Init(void);
+void LCD_nibble_write(uint8_t temp, uint8_t s);
+void Write_String_LCD(char *temp);
+void Write_Char_LCD(uint8_t code);
+void Write_SR_LCD(uint8_t temp);
+void Write_Instr_LCD(uint8_t code);
+uint8_t Read_Keypad();
 void Init_Timer2(void);
 
 //defining bitfield masks for each drum sound - this allows us to play multiple drum sounds at a single step.
@@ -35,14 +42,15 @@ uint8_t pattern[BEAT_SIZE];
 //notice that the "volatile" keyword is used, since we will very often be editing step's value.
 volatile uint8_t step = 0;
 //Mode: 0 is Beat Build Mode, 1 is Play mode. Starts on Beat Build Mode.
-uint8_t mode = 0;
+uint8_t mode = 1;
 int main(void)
 {
     HAL_Init();
+		HAL_Delay(100); 
     SystemClock_Config();
 	
 		//Turn off all LEDs in Init
-    Init_LEDs();
+		MX_GPIO_Init();
 		//Initializing timer 2 to interrupt at 120 bpm.
 		Init_Timer2();
 
@@ -76,67 +84,302 @@ int main(void)
 }
 
 
-void Init_LEDs()
+// Set up the GPIO pins
+static void MX_GPIO_Init(void)
 {
-    uint32_t temp;
-    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
-		RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
+  // TODO: Initialize any input or output pins you'll use here
+     
+            uint32_t temp;
+RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+      RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;
+      RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
+                 
+			//LED0
+			temp = GPIOA->MODER;
+			temp &= ~(0x03<<(2*1));
+			temp|=(0x01<<(2*1));
+			GPIOA->MODER = temp;
+			temp=GPIOA->OTYPER;
+			temp &=~(0x01<<1);
+			GPIOA->OTYPER=temp;
+			temp=GPIOA->PUPDR;
+			temp&=~(0x03<<(2*1));
+			GPIOA->PUPDR=temp;
+      
+				//LED1
+			temp = GPIOA->MODER;
+			temp &= ~(0x03<<(2*0));
+			temp|=(0x01<<(2*0));
+			GPIOA->MODER = temp;
+			temp=GPIOA->OTYPER;
+			temp &=~(0x01<<0);
+			GPIOA->OTYPER=temp;
+			temp=GPIOA->PUPDR;
+			temp&=~(0x03<<(2*0));
+			GPIOA->PUPDR=temp;
 
-		//Initializing LED0
-    temp = GPIOA->MODER;
-    temp &= ~(0x03 << (2 * 1));
-    temp |= (0x01 << (2 * 1));
-    GPIOA->MODER = temp;
 
-    temp = GPIOA->OTYPER;
-    temp &= ~(0x01 << 1);
-    GPIOA->OTYPER = temp;
+			//LED2
+			temp = GPIOC->MODER;
+			temp &= ~(0x03<<(2*7));
+			temp|=(0x01<<(2*7));
+			GPIOC->MODER = temp;
+			temp=GPIOC->OTYPER;
+			temp &=~(0x01<<7);
+			GPIOC->OTYPER=temp;
+			temp=GPIOC->PUPDR;
+			temp&=~(0x03<<(2*7));
+			GPIOC->PUPDR=temp;
 
-    temp = GPIOA->PUPDR;
-    temp &= ~(0x03 << (2 * 1));
-    GPIOA->PUPDR = temp;
-	
-		//LED1
-    temp = GPIOA->MODER;
-    temp &= ~(0x03 << (2 * 0));
-    temp |= (0x01 << (2 * 0));
-    GPIOA->MODER = temp;
+			//LED3
+			temp = GPIOC->MODER;
+			temp &= ~(0x03<<(2*8));
+			temp|=(0x01<<(2*8));
+			GPIOC->MODER = temp;
+			temp=GPIOC->OTYPER;
+			temp &=~(0x01<<8);
+			GPIOC->OTYPER=temp;
+			temp=GPIOC->PUPDR;
+			temp&=~(0x03<<(2*8));
+			GPIOC->PUPDR=temp;
 
-    temp = GPIOA->OTYPER;
-    temp &= ~(0x01 << 0);
-    GPIOA->OTYPER = temp;
+     
+// Initialization of 7 seg    
+      temp = GPIOA->MODER;
+      temp &= ~(0x03<<(2*5));
+      temp|=(0x01<<(2*5));
+      GPIOA->MODER = temp;
+                 
+      temp=GPIOA->OTYPER;
+      temp &=~(0x01<<5);
+      GPIOA->OTYPER=temp;
+     
+      temp=GPIOA->PUPDR;
+      temp&=~(0x03<<(2*5));
+      GPIOA->PUPDR=temp;
 
-    temp = GPIOA->PUPDR;
-    temp &= ~(0x03 << (2 * 0));
-    GPIOA->PUPDR = temp;
-		
-		//LED2
-		temp = GPIOC->MODER;
-    temp &= ~(0x03 << (2 * 7));
-    temp |= (0x01 << (2 * 7));
-    GPIOC->MODER = temp;
+     
+      temp = GPIOB->MODER;
+      temp &= ~(0x03<<(2*5));
+      temp|=(0x01<<(2*5));
+      GPIOB->MODER = temp;
+                 
+      temp=GPIOB->OTYPER;
+      temp &=~(0x01<<5);
+      GPIOB->OTYPER=temp;
+     
+      temp=GPIOB->PUPDR;
+      temp&=~(0x03<<(2*5));
+      GPIOB->PUPDR=temp;
+     
+      temp = GPIOC->MODER;
+      temp &= ~(0x03<<(2*10));
+      temp|=(0x01<<(2*10));
+      GPIOC->MODER = temp;
+                 
+      temp=GPIOC->OTYPER;
+      temp &=~(0x01<<10);
+      GPIOC->OTYPER=temp;
+     
+      temp=GPIOC->PUPDR;
+      temp&=~(0x03<<(2*10));
+      GPIOC->PUPDR=temp;      
+     
+       temp = GPIOA->MODER;
+                   temp &= ~(0x03<<(2*10));
+                   temp|=(0x01<<(2*10));
+                   GPIOA->MODER = temp;
+                 
+                   temp=GPIOA->OTYPER;
+                   temp &=~(0x01<<10);
+           GPIOA->OTYPER=temp;
+     
+                   temp=GPIOA->PUPDR;
+           temp&=~(0x03<<(2*10));
+           GPIOA->PUPDR=temp;
 
-    temp = GPIOC->OTYPER;
-    temp &= ~(0x01 << 7);
-    GPIOC->OTYPER = temp;
+      /* LCD controller reset sequence */
+      HAL_Delay(20);
+      LCD_nibble_write(0x30,0);
+      HAL_Delay(5);
+      LCD_nibble_write(0x30,0);
+      HAL_Delay(1);
+      LCD_nibble_write(0x30,0);
+      HAL_Delay(1);
+      LCD_nibble_write(0x20,0);
+      HAL_Delay(1);
+     
+           
+      Write_Instr_LCD(0x28); /* set 4 bit data LCD - two line display - 5x8 font*/
+      Write_Instr_LCD(0x0E); /* ;turn on display, turn on cursor , turn off blinking            */    
+      Write_Instr_LCD(0x01); /* clear display screen and return to home position    */          
+      Write_Instr_LCD(0x06); /* ;move cursor to right (entry mode set instruction)        */    
 
-    temp = GPIOC->PUPDR;
-    temp &= ~(0x03 << (2 * 7));
-    GPIOC->PUPDR = temp;
-		
-		//LED3
-		temp = GPIOC->MODER;
-    temp &= ~(0x03 << (2 * 8));
-    temp |= (0x01 << (2 * 8));
-    GPIOC->MODER = temp;
+/*configure input*/
+      /* row0 to 3 are PB11, PB10, PB9, PB8 */
+      temp = GPIOB->MODER;
+      temp &= ~(0x03<<(2*11));
+      temp &= ~(0x03<<(2*10)); temp &= ~(0x03<<(2*9));
+      temp &= ~(0x03<<(2*8));
+      GPIOB->MODER = temp;
+      temp=GPIOB->OTYPER;
+      temp &=~(0x01<<11);
+      temp &=~(0x01<<10);
+      temp &=~(0x01<<9);
+      temp &=~(0x01<<8);
+      GPIOB->OTYPER=temp;
 
-    temp = GPIOC->OTYPER;
-    temp &= ~(0x01 << 8);
-    GPIOC->OTYPER = temp;
+      temp=GPIOB->PUPDR;
+      temp&=~(0x03<<(2*11));
+      temp&=~(0x03<<(2*10));
+      temp&=~(0x03<<(2*9));
+      temp&=~(0x03<<(2*8));
+      GPIOB->PUPDR=temp;
 
-    temp = GPIOC->PUPDR;
-    temp &= ~(0x03 << (2 * 8));
-    GPIOC->PUPDR = temp;
+      /* Col 0 to 3 are PB1, PB2, PB3, PB4*/
+      /*configure output*/
+      temp = GPIOB->MODER;
+      temp &= ~(0x03<<(2*1));
+      temp|=(0x01<<(2*1));
+      temp &= ~(0x03<<(2*2));
+      temp|=(0x01<<(2*2));
+      temp &= ~(0x03<<(2*3));
+      temp|=(0x01<<(2*3));
+      temp &= ~(0x03<<(2*4));
+      temp|=(0x01<<(2*4));
+      GPIOB->MODER = temp;
+
+      temp=GPIOB->OTYPER;
+      temp &=~(0x01<<1);
+      temp &=~(0x01<<2);
+      temp &=~(0x01<<3);
+      temp &=~(0x01<<4);
+      GPIOB->OTYPER=temp;
+
+      temp=GPIOB->PUPDR;
+      temp&=~(0x03<<(2*1));
+      temp&=~(0x03<<(2*2));
+      temp&=~(0x03<<(2*3));
+      temp&=~(0x03<<(2*4));
+      GPIOB->PUPDR=temp;
+
+
+}
+
+void LCD_nibble_write(uint8_t temp, uint8_t s)
+{
+if (s==0) /*writing instruction*/
+{
+      temp=temp&0xF0;
+      temp=temp|0x02; /*RS=1 (bit 0) for data EN=high (bit1)*/
+      Write_SR_LCD(temp);
+      temp=temp&0xFD; /*RS=1 (bit 0) for data EN=high (bit1)*/
+      Write_SR_LCD(temp);
+}
+
+else if (s==1) /*writing data*/
+{
+  temp=temp&0xF0;
+      temp=temp|0x03; /*RS=1 (bit 0) for data EN=high (bit1)*/
+      Write_SR_LCD(temp);
+      temp=temp&0xFD; /*RS=1 (bit 0) for data EN=high (bit1)*/
+      Write_SR_LCD(temp);
+}
+     
+}
+
+void Write_String_LCD(char *temp)
+{
+int i=0;
+while(temp[i]!=0)
+{
+      Write_Char_LCD(temp[i]);
+      i=i+1;
+}    
+}
+
+void Write_Instr_LCD(uint8_t code)
+{
+      LCD_nibble_write(code&0xF0,0);
+     
+      code=code<<4;
+      LCD_nibble_write(code,0);
+}
+
+void Write_Char_LCD(uint8_t code)
+{
+     
+      LCD_nibble_write(code&0xF0,1);
+     
+      code=code<<4;
+      LCD_nibble_write(code,1);
+     
+}
+
+uint8_t Read_Keypad()
+{
+    uint8_t a = 255;
+
+    GPIOB->ODR |= (1<<1)|(1<<2)|(1<<3)|(1<<4);
+
+    // No key pressed ? return immediately
+    if((GPIOB->IDR &(0x1<<8))==0 &&
+       (GPIOB->IDR &(0x1<<9))==0 &&
+       (GPIOB->IDR &(0x1<<10))==0 &&
+       (GPIOB->IDR &(0x1<<11))==0)
+    {
+        return 255;
+    }
+
+    HAL_Delay(25);
+
+    // ---- Scan columns ONCE ----
+
+    GPIOB->ODR &= ~(1<<1);
+    GPIOB->ODR &= ~(1<<2);
+    GPIOB->ODR &= ~(1<<3);
+    GPIOB->ODR &= ~(1<<4);
+
+    // Column 0
+    GPIOB->ODR |= (1<<1);
+    HAL_Delay(2);
+
+    if(GPIOB->IDR & (1<<8)) return 1;
+    if(GPIOB->IDR & (1<<9)) return 4;
+    if(GPIOB->IDR & (1<<10)) return 7;
+    if(GPIOB->IDR & (1<<11)) return 14;
+
+    // Column 1
+    GPIOB->ODR &= ~(1<<1);
+    GPIOB->ODR |= (1<<2);
+    HAL_Delay(2);
+
+    if(GPIOB->IDR & (1<<8)) return 2;
+    if(GPIOB->IDR & (1<<9)) return 5;
+    if(GPIOB->IDR & (1<<10)) return 8;
+    if(GPIOB->IDR & (1<<11)) return 0;
+
+    // Column 2
+    GPIOB->ODR &= ~(1<<2);
+    GPIOB->ODR |= (1<<3);
+    HAL_Delay(2);
+
+    if(GPIOB->IDR & (1<<8)) return 3;
+    if(GPIOB->IDR & (1<<9)) return 6;
+    if(GPIOB->IDR & (1<<10)) return 9;
+    if(GPIOB->IDR & (1<<11)) return 15;
+
+    // Column 3
+    GPIOB->ODR &= ~(1<<3);
+    GPIOB->ODR |= (1<<4);
+    HAL_Delay(2);
+
+    if(GPIOB->IDR & (1<<8)) return 10;
+    if(GPIOB->IDR & (1<<9)) return 11;
+    if(GPIOB->IDR & (1<<10)) return 12;
+    if(GPIOB->IDR & (1<<11)) return 13;
+
+    return 255;
 }
 
 void Init_Timer2() {
@@ -188,6 +431,30 @@ void TIM2_IRQHandler(void) {
 			}
 	}
 }
+
+void Write_SR_LCD(uint8_t temp)
+{
+int i;
+uint8_t mask=0b10000000;
+     
+for(i=0; i<8; i++) {
+        if((temp&mask)==0)
+        GPIOB->ODR&=~(1<<5);
+        else
+        GPIOB->ODR|=(1<<5);
+
+        /*  Sclck */
+        GPIOA->ODR&=~(1<<5); GPIOA->ODR|=(1<<5);
+        HAL_Delay(1);
+
+        mask=mask>>1;
+        }
+
+    /*Latch*/
+    GPIOA->ODR|=(1<<10);
+    GPIOA->ODR&=~(1<<10);
+}
+
 /* ---------------------- CLOCK CONFIGURATION ---------------------- */
 void SystemClock_Config(void)
 {

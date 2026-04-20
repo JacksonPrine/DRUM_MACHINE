@@ -27,6 +27,10 @@ void Write_SR_LCD(uint8_t temp);
 void Write_Instr_LCD(uint8_t code);
 uint8_t Read_Keypad();
 void Init_Timer2(void);
+void Init_Speaker(void);
+void Play_Kick(void);
+void Play_Snare(void);
+void Play_Hihat(void);
 
 //defining bitfield masks for each drum sound - this allows us to play multiple drum sounds at a single step.
 #define KICK_BIT 0b1
@@ -51,6 +55,7 @@ int main(void)
 	
 		//Turn off all LEDs in Init
 		MX_GPIO_Init();
+		Init_Speaker();
 		//Initializing timer 2 to interrupt at 120 bpm.
 		Init_Timer2();
 
@@ -82,6 +87,8 @@ int main(void)
 			}
     }
 }
+
+
 
 
 // Set up the GPIO pins
@@ -454,6 +461,81 @@ for(i=0; i<8; i++) {
     GPIOA->ODR|=(1<<10);
     GPIOA->ODR&=~(1<<10);
 }
+
+/************ SPEAKER INIT ************/
+void Init_Speaker()
+{
+    uint32_t temp;
+
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+
+    temp = GPIOA->MODER;
+    temp &= ~(0x03<<(2*8));
+    temp |= (0x01<<(2*8));   // PA8 OUTPUT
+    GPIOA->MODER = temp;
+
+    GPIOA->OTYPER &= ~(1<<8);
+    GPIOA->PUPDR &= ~(0x03<<(2*8));
+}
+
+/************ KICK SOUND ************/
+void Play_Kick()
+{
+    for(int i = 0; i < 200; i++)
+    {
+        GPIOA->ODR ^= (1<<8);
+        for(volatile int d=0; d<200; d++);
+    }
+}
+/************ SNARE ************/
+void Play_Snare()
+{
+    for(int i = 0; i < 300; i++)
+    {
+        if(i & 1)
+            GPIOA->ODR |= (1<<8);
+        else
+            GPIOA->ODR &= ~(1<<8);
+
+        for(volatile int d=0; d<100; d++);
+    }
+}
+/************ HI-HAT ************/
+void Play_Hihat()
+{
+    for(int i = 0; i < 100; i++)
+    {
+        GPIOA->ODR ^= (1<<8);  
+        for(volatile int d=0; d<30; d++);
+    }
+}
+
+ /*void TIM2_IRQHandler(void)
+{
+    if(TIM2->SR & TIM_SR_UIF)
+    {
+        TIM2->SR &= ~TIM_SR_UIF;
+
+        if(mode == 1)
+        {
+            step++;
+
+            if(step >= BEAT_SIZE)
+                step = 0;
+
+         ************ PLAY SOUND ************
+			if(pattern[step] & KICK_BIT)
+   			 	Play_Kick();
+
+			if(pattern[step] & SNARE_BIT)
+    			Play_Snare();
+
+			if(pattern[step] & HIHAT_BIT)
+    			Play_Hihat();
+         ***********************************
+        }
+    }
+}  
 
 /* ---------------------- CLOCK CONFIGURATION ---------------------- */
 void SystemClock_Config(void)

@@ -61,6 +61,7 @@ int main(void)
 
     Init_LED0();
     DAC_Channel2_Init();
+	SystemClock_Config();
     Init_Timer4();  
 
     while (1)

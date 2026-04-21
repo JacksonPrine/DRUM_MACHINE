@@ -103,6 +103,13 @@ void Delay(unsigned int n)
   for (i = 0; i < 136; i++) ;
 }
 
+static inline float noise(void)
+{
+    noiseSeed = 1664525 * noiseSeed + 1013904223;
+    return ((noiseSeed >> 16) & 0xFFFF) / 32768.0f - 1.0f;
+}
+
+
 void TIM4_IRQHandler(void)
 {
     if (TIM4->SR & TIM_SR_UIF)
@@ -233,12 +240,6 @@ void DAC_Channel2_Init(void) {
 	//Set I/O mode as analog
 	GPIOA->MODER &= ~(3U << (2*5));
 	GPIOA->MODER |= 3U<<(2*5);
-}
-
-static inline float noise(void)
-{
-    noiseSeed = 1664525 * noiseSeed + 1013904223;
-    return ((noiseSeed >> 16) & 0xFFFF) / 32768.0f - 1.0f;
 }
 
 void trigger_kick(void)

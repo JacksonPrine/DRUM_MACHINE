@@ -58,7 +58,10 @@ int main(void)
     while (1)
     {
 			key = Read_Keypad();
-			//Turn all LEDs off
+			GPIOA->ODR &= ~(1<<1);
+			GPIOA->ODR &= ~(1<<0);
+			GPIOC->ODR &= ~(1<<8);
+			GPIOC->ODR &= ~(1<<7);
 			if(key == 15&&last_key!=15)
 			{
 				GPIOA->ODR &= ~(1<<1);

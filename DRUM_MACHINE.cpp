@@ -42,43 +42,86 @@ uint8_t pattern[BEAT_SIZE];
 //notice that the "volatile" keyword is used, since we will very often be editing step's value.
 volatile uint8_t step = 0;
 //Mode: 0 is Beat Build Mode, 1 is Play mode. Starts on Beat Build Mode.
-uint8_t mode = 1;
+volatile uint8_t mode = 0;
 int main(void)
 {
     HAL_Init();
-		HAL_Delay(100); 
+	HAL_Delay(100); 
     SystemClock_Config();
+	int last_key = 255;
+	int key;
+	//Turn off all LEDs in Init
+	MX_GPIO_Init();
+	//Initializing timer 2 to interrupt at 120 bpm.
+	Init_Timer2();
 	
-		//Turn off all LEDs in Init
-		MX_GPIO_Init();
-		//Initializing timer 2 to interrupt at 120 bpm.
-		Init_Timer2();
-
     while (1)
     {
-			
+			key = Read_Keypad();
 			//Turn all LEDs off
-			GPIOA->ODR &= ~(1<<1);
-			GPIOA->ODR &= ~(1<<0);
-			GPIOC->ODR &= ~(1<<8);
-			GPIOC->ODR &= ~(1<<7);
+			if(key == 15&&last_key!=15)
+			{
+				GPIOA->ODR &= ~(1<<1);
+				GPIOA->ODR &= ~(1<<0);
+				GPIOC->ODR &= ~(1<<8);
+				GPIOC->ODR &= ~(1<<7);
+				mode++;
+				if(mode>1)
+					mode=0;
+			}
+			last_key = key;
 			
-			int LEDtemp = step / 4;
-			if(LEDtemp == 0) {
-				//Turn on LED 3
-				GPIOC->ODR |= (1<<8);
+			if(mode == 0)
+			{
+				
+				step =0;
+				if(key == 14)
+				{
+					step++;
+					if(step > 15)
+						step = 0;
+				}
+
+				int LEDtemp = step / 4;
+				if(LEDtemp == 0) {
+					//Turn on LED 3
+					GPIOC->ODR |= (1<<8);
+				}
+				else if (LEDtemp == 1) {
+					//Turn on LED 2
+					GPIOC->ODR |= (1<<7);
+				}
+				else if (LEDtemp == 2) {
+					//Turn on LED 1
+					GPIOA->ODR |= (1<<0);
+				}
+				else if (LEDtemp == 3) {
+					//Turn on LED 0
+					GPIOA->ODR |= (1<<1);
+				}
+				
+				
 			}
-			else if (LEDtemp == 1) {
-				//Turn on LED 2
-				GPIOC->ODR |= (1<<7);
-			}
-			else if (LEDtemp == 2) {
-				//Turn on LED 1
-				GPIOA->ODR |= (1<<0);
-			}
-			else if (LEDtemp == 3) {
-				//Turn on LED 0
-				GPIOA->ODR |= (1<<1);
+
+			if(mode == 1)
+			{
+				int LEDtemp = step / 4;
+				if(LEDtemp == 0) {
+					//Turn on LED 3
+					GPIOC->ODR |= (1<<8);
+				}
+				else if (LEDtemp == 1) {
+					//Turn on LED 2
+					GPIOC->ODR |= (1<<7);
+				}
+				else if (LEDtemp == 2) {
+					//Turn on LED 1
+					GPIOA->ODR |= (1<<0);
+				}
+				else if (LEDtemp == 3) {
+					//Turn on LED 0
+					GPIOA->ODR |= (1<<1);
+				}
 			}
     }
 }

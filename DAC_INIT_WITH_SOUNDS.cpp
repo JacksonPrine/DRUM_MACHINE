@@ -21,35 +21,59 @@
 void Delay(unsigned int ms);
 void SystemClock_Config(void);
 void Init_LED0(void);
+void Init_Timer4(void);
 void DAC_Channel2_Init(void);
 void trigger_kick(void);
-void Audio_Timer_IRQHandler(void);
+void TIM4_IRQHandler(void);
 
-#define SAMPLE_RATE 8000
+volatile uint32_t angle;
+volatile uint32_t stepSize;
+volatile uint32_t frequency;
 
-volatile uint8_t kick_active = 0;
+#define SAMPLE_RATE 44444.0f
+#define TWO_PI 6.2831853f
 
-float phase = 0.0f;
-float freq = 150.0f;        // starting frequency (Hz)
-float amplitude = 1.0f;
+// structs for different drum sounds
+typedef struct {
+    float phase;
+    float freq;
+    float env;
+    uint8_t active;
+} Kick;
 
+typedef struct {
+    float env;
+    uint8_t active;
+} NoiseVoice;
 
+// 
+volatile Kick kick;
+
+volatile NoiseVoice snare;
+volatile NoiseVoice hat;
+
+//Noise generator for snare & hi hat
+static uint32_t noiseSeed = 1;
 
 int main(void)
 {
     HAL_Init();
-    /*SystemClock_Config();*/
 
     Init_LED0();
-		DAC_Channel2_Init();
-	
+    DAC_Channel2_Init();
+    Init_Timer4();  
+
     while (1)
     {
-				DAC->DHR12R2 = 4095;  // max
-				HAL_Delay(500);
-
-				DAC->DHR12R2 = 0;     // min
-				HAL_Delay(500);
+		trigger_kick();
+		HAL_Delay(500);
+		trigger_snare();
+		HAL_Delay(500);
+		trigger_hat();
+		HAL_Delay(1000);
+		trigger_kick();
+		trigger_snare();
+		HAL_Delay(1000);
     }
 }
 
@@ -79,46 +103,67 @@ void Delay(unsigned int n)
   for (i = 0; i < 136; i++) ;
 }
 
-void trigger_kick(void)
+void TIM4_IRQHandler(void)
 {
-    kick_active = 1;
-    phase = 0.0f;
-    freq = 150.0f;     // initial pitch
-    amplitude = 1.0f;  // full volume
-}
-
-void Audio_Timer_IRQHandler(void)
-{
-    if (kick_active)
+    if (TIM4->SR & TIM_SR_UIF)
     {
-        // Generate sine wave
-        float sample = amplitude * sinf(phase);
+        TIM4->SR &= ~TIM_SR_UIF;
 
-        // Convert to DAC (12-bit: 0–4095)
-        uint16_t dac_val = (uint16_t)((sample + 1.0f) * 2048);
-        DAC->DHR12R2 = dac_val;
+       //Kick
+        float kickOut = 0.0f;
 
-        // Advance phase
-        phase += 2.0f * 3.14159f * freq / SAMPLE_RATE;
+        if (kick.active)
+        {
+            kick.phase += TWO_PI * kick.freq / SAMPLE_RATE;
 
-        // Wrap phase
-        if (phase > 2.0f * 3.14159f)
-            phase -= 2.0f * 3.14159f;
+            if (kick.phase > TWO_PI)
+                kick.phase -= TWO_PI;
 
-        // Exponential decay (volume)
-        amplitude *= 0.995f;
+            kickOut = sinf(kick.phase) * kick.env;
 
-        // Pitch drop
-        freq *= 0.9995f;
+            // envelope decay
+            kick.env *= 0.995f;
 
-        // Stop when silent
-        if (amplitude < 0.001f)
-            kick_active = 0;
-    }
-    else
-    {
-        // Output silence (midpoint)
-        DAC->DHR12R2 = 2048;
+            // pitch drop (classic kick behavior)
+            kick.freq *= 0.9995f;
+
+            if (kick.env < 0.001f)
+                kick.active = 0;
+        }
+
+       //Snare
+        float snareOut = 0.0f;
+
+        if (snare.active)
+        {
+            snareOut = noise() * snare.env;
+
+            snare.env *= 0.96f;
+
+            if (snare.env < 0.001f)
+                snare.active = 0;
+        }
+
+      //Hihat
+        float hatOut = 0.0f;
+
+        if (hat.active)
+        {
+            hatOut = noise() * hat.env;
+
+            hat.env *= 0.90f;
+
+            if (hat.env < 0.001f)
+                hat.active = 0;
+        }
+
+      //mixing multiple sounds
+        float mix = kickOut + snareOut + hatOut;
+
+        mix *= 0.5f; // prevent clipping
+
+        // DAC output (0–4095)
+        DAC->DHR12R2 = (uint16_t)((mix + 1.0f) * 2048.0f);
     }
 }
 
@@ -176,6 +221,11 @@ void DAC_Channel2_Init(void) {
 	
 	//Enabling DAC channel 2
 	DAC->CR |= DAC_CR_EN2;
+	//disable trigger
+	DAC->CR &= ~DAC_CR_TEN2;
+
+	//enable output buffer
+	DAC->CR &= ~DAC_CR_BOFF2;  
 	
 	//Enable the clock of GPIO port A 
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
@@ -184,6 +234,67 @@ void DAC_Channel2_Init(void) {
 	GPIOA->MODER &= ~(3U << (2*5));
 	GPIOA->MODER |= 3U<<(2*5);
 }
+
+static inline float noise(void)
+{
+    noiseSeed = 1664525 * noiseSeed + 1013904223;
+    return ((noiseSeed >> 16) & 0xFFFF) / 32768.0f - 1.0f;
+}
+
+void trigger_kick(void)
+{
+    kick.phase = 0;
+    kick.freq = 180.0f;
+    kick.env = 1.0f;
+    kick.active = 1;
+}
+
+void trigger_snare(void)
+{
+    snare.env = 1.0f;
+    snare.active = 1;
+}
+
+void trigger_hat(void)
+{
+    hat.env = 0.6f;
+    hat.active = 1;
+}
+
+void Init_Timer4() {
+	//Enabling timer 4 clock
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM4EN;
+	
+	//Selecting upcounting mode for Timer4
+	TIM4->CR1 &= ~TIM_CR1_DIR;
+	
+	//Note: We are initalizing PSC and ARR to fit to a sampling rate of 44.4 kHZ (very close to the common 44.1 kHZ) 
+	
+	//Setting the prescaler, which slows down the input clock by (1 + prescaler)
+	TIM4->PSC = 8; 
+	
+	//Setting the auto-reload, which is how often the the timer4 restarts
+	TIM4->ARR = 9; 
+	
+	//This line immediately updates Timer 4's PRC and ARR, preventing anything weird happening during first timer cycle.
+	TIM4->EGR |= TIM_EGR_UG;
+	
+	//Clearing the UIF (Update Interupt Flag). Must be done after
+	TIM4->SR &= ~TIM_SR_UIF;
+	
+	//Enabling update interrupts
+	TIM4->DIER |= TIM_DIER_UIE;
+	
+	//Enabling TIM4 interrupt in NVIC
+	NVIC_EnableIRQ(TIM4_IRQn);
+																																																							
+	//Enabling counter (So timer actually increments)
+	TIM4->CR1 |= TIM_CR1_CEN;
+	
+}
+
+
+
 
 
 

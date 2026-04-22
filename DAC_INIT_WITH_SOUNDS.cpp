@@ -24,6 +24,8 @@ void Init_LED0(void);
 void Init_Timer4(void);
 void DAC_Channel2_Init(void);
 void trigger_kick(void);
+void trigger_snare(void);
+void trigger_hat(void);
 void TIM4_IRQHandler(void);
 
 volatile uint32_t angle;
@@ -43,6 +45,9 @@ typedef struct {
 
 typedef struct {
     float env;
+		float hp1;
+		float h2;
+		float bp;
     uint8_t active;
 } NoiseVoice;
 
@@ -54,27 +59,36 @@ volatile NoiseVoice hat;
 
 //Noise generator for snare & hi hat
 static uint32_t noiseSeed = 1;
+static float hp1 = 0.0f;
+static float hp2 = 0.0f;
+
+static float bp = 0.0f;
+
+// simple resonant oscillator state (metallic tone)
+static float metal_phase = 0.0f;
 
 int main(void)
 {
     HAL_Init();
 
+    HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+
+    SystemClock_Config();
+
     Init_LED0();
     DAC_Channel2_Init();
-	SystemClock_Config();
-    Init_Timer4();  
+    Init_Timer4();
 
     while (1)
     {
-		trigger_kick();
-		HAL_Delay(500);
-		trigger_snare();
-		HAL_Delay(500);
-		trigger_hat();
-		HAL_Delay(1000);
-		trigger_kick();
-		trigger_snare();
-		HAL_Delay(1000);
+        trigger_kick();
+        //HAL_Delay(500);
+
+        //trigger_snare();
+        ///HAL_Delay(500);
+
+        //trigger_hat();
+        //HAL_Delay(1000);
     }
 }
 
@@ -113,8 +127,10 @@ static inline float noise(void)
 
 void TIM4_IRQHandler(void)
 {
+		float mix;
     if (TIM4->SR & TIM_SR_UIF)
     {
+			GPIOA->ODR ^= (1 << 1);
         TIM4->SR &= ~TIM_SR_UIF;
 
        //Kick
@@ -126,14 +142,17 @@ void TIM4_IRQHandler(void)
 
             if (kick.phase > TWO_PI)
                 kick.phase -= TWO_PI;
+					
 
             kickOut = sinf(kick.phase) * kick.env;
 
             // envelope decay
-            kick.env *= 0.995f;
+            kick.env *= 0.999995f;
 
             // pitch drop (classic kick behavior)
-            kick.freq *= 0.9995f;
+           // kick.freq = 100.0f;
+						
+						kick.freq *= 0.998f;
 
             if (kick.env < 0.001f)
                 kick.active = 0;
@@ -146,58 +165,63 @@ void TIM4_IRQHandler(void)
         {
             snareOut = noise() * snare.env;
 
-            snare.env *= 0.96f;
+            snare.env *= 0.99997f;
 
             if (snare.env < 0.001f)
                 snare.active = 0;
         }
 
-      //Hihat
-        float hatOut = 0.0f;
 
-        if (hat.active)
-        {
-            hatOut = noise() * hat.env;
+				float hatOut = 0.0f;
 
-            hat.env *= 0.90f;
+				if (hat.active)
+				{
+						// 1. raw noise
+						float n = noise();
 
-            if (hat.env < 0.001f)
-                hat.active = 0;
-        }
+						// 2. HIGH-PASS (removes low frequencies)
+						float hp = n - hp1;
+						hp1 = n;
 
-      //mixing multiple sounds
-        float mix = kickOut + snareOut + hatOut;
+						// 3. SECOND high-pass stage (steeper cutoff = more 808-like)
+						float hpB = hp - hp2;
+						hp2 = hp;
 
-        mix *= 0.5f; // prevent clipping
+						// 4. BAND-PASS approximation (difference of two HP stages)
+						bp = hpB;
 
-        // DAC output (0–4095)
-        DAC->DHR12R2 = (uint16_t)((mix + 1.0f) * 2048.0f);
+						// 5. metallic resonator (very important for 808 character)
+						metal_phase += 0.35f;
+						if (metal_phase > TWO_PI) metal_phase -= TWO_PI;
+
+						float metal = sinf(metal_phase);
+
+						// mix noise + metallic tone
+						hatOut = (bp * 0.9999f + metal * 0.99999f) * hat.env;
+
+						// 6. fast decay (808 hats are very short)
+						hat.env *= 0.9965f;
+
+						if (hat.env < 0.001f)
+								hat.active = 0;
+				}
+
+			mix = (kickOut + snareOut + hatOut) * 1.0f;
+
+			// safety clamp
+			if (mix > 1.0f) mix = 1.0f;
+			if (mix < -1.0f) mix = -1.0f;
+
+			DAC->DHR12R2 = (uint16_t)((mix * 0.5f + 0.5f) * 4095);
     }
 }
 
-/* ---------------------- CLOCK CONFIGURATION ---------------------- */
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+    RCC->CR |= RCC_CR_MSION;
+    while (!(RCC->CR & RCC_CR_MSIRDY));
 
-  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-  RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6; // 4 MHz
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  HAL_RCC_OscConfig(&RCC_OscInitStruct);
-
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK|
-                                RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_MSI;
-  RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-
-  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0);
+    RCC->CFGR = 0x0;
 }
 
 
@@ -213,34 +237,26 @@ void Error_Handler(void)
   }
 }
 
-void DAC_Channel2_Init(void) {
-	
-	//Enabling DAC Clock
-	RCC->APB1ENR1 |= RCC_APB1ENR1_DAC1EN;
-	
-	//Disabling DAC
-	DAC->CR &= ~( DAC_CR_EN1 | DAC_CR_EN2 );
-	
-	//Setting to mode 000
-	DAC->MCR &= ~ (7U<<16);
-	
-	//Disable trigger for DAC channel 2
-	DAC->CR &= ~DAC_CR_TEN2;
-	
-	//Enabling DAC channel 2
-	DAC->CR |= DAC_CR_EN2;
-	//disable trigger
-	DAC->CR &= ~DAC_CR_TEN2;
+void DAC_Channel2_Init(void)
+{
+    RCC->APB1ENR1 |= RCC_APB1ENR1_DAC1EN;
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
 
-	//enable output buffer
-	DAC->CR &= ~DAC_CR_BOFF2;  
-	
-	//Enable the clock of GPIO port A 
-	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
-	
-	//Set I/O mode as analog
-	GPIOA->MODER &= ~(3U << (2*5));
-	GPIOA->MODER |= 3U<<(2*5);
+    // PA5 analog mode
+    GPIOA->MODER |= (3U << (2 * 5));
+
+    // Disable DAC first
+    DAC->CR &= ~(DAC_CR_EN1 | DAC_CR_EN2);
+
+    // Normal mode
+    DAC->MCR &= ~(7U << 16);
+    DAC->MCR &= ~(7U << 0);
+
+    // No trigger
+    DAC->CR &= ~DAC_CR_TEN2;
+
+    // Enable DAC channel 2
+    DAC->CR |= DAC_CR_EN2;
 }
 
 void trigger_kick(void)
@@ -257,44 +273,34 @@ void trigger_snare(void)
     snare.active = 1;
 }
 
+
 void trigger_hat(void)
 {
-    hat.env = 0.6f;
+    hat.env = 0.8f;
     hat.active = 1;
+
+    // reset filter state for consistency
+    hp1 = hp2 = 0.0f;
 }
 
-void Init_Timer4() {
-	//Enabling timer 4 clock
-	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM4EN;
-	
-	//Selecting upcounting mode for Timer4
-	TIM4->CR1 &= ~TIM_CR1_DIR;
-	
-	//Note: We are initalizing PSC and ARR to fit to a sampling rate of 44.4 kHZ (very close to the common 44.1 kHZ) 
-	
-	//Setting the prescaler, which slows down the input clock by (1 + prescaler)
-	TIM4->PSC = 8; 
-	
-	//Setting the auto-reload, which is how often the the timer4 restarts
-	TIM4->ARR = 9; 
-	
-	//This line immediately updates Timer 4's PRC and ARR, preventing anything weird happening during first timer cycle.
-	TIM4->EGR |= TIM_EGR_UG;
-	
-	//Clearing the UIF (Update Interupt Flag). Must be done after
-	TIM4->SR &= ~TIM_SR_UIF;
-	
-	//Enabling update interrupts
-	TIM4->DIER |= TIM_DIER_UIE;
-	
-	//Enabling TIM4 interrupt in NVIC
-	NVIC_EnableIRQ(TIM4_IRQn);
-																																																							
-	//Enabling counter (So timer actually increments)
-	TIM4->CR1 |= TIM_CR1_CEN;
-	
-}
+void Init_Timer4()
+{
+    RCC->APB1ENR1 |= RCC_APB1ENR1_TIM4EN;
 
+    TIM4->PSC = 8;
+    TIM4->ARR = 9;
+
+    TIM4->EGR |= TIM_EGR_UG;
+
+    TIM4->DIER |= TIM_DIER_UIE;
+
+    NVIC_SetPriority(TIM4_IRQn, 1);
+    NVIC_EnableIRQ(TIM4_IRQn);
+
+    TIM4->CR1 |= TIM_CR1_CEN;
+
+    TIM4->SR &= ~TIM_SR_UIF;
+}
 
 
 

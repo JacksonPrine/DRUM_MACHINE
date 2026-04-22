@@ -30,6 +30,7 @@ void Init_Timer2(void);
 void Write_SR_7S(uint8_t temp_Enable, uint8_t temp_Digit);
 void Write_7Seg(uint8_t temp_Enable, uint8_t temp_Digit);
 void Delay(volatile uint32_t count);
+void Init_buzzer(void);
 
 
 
@@ -58,6 +59,13 @@ int main(void)
 		MX_GPIO_Init();
 		//Initializing timer 2 to interrupt at 120 bpm.
 		Init_Timer2();
+	
+		Init_buzzer();
+	
+		pattern[0] = 0b001;
+		pattern[4] = 0b011;
+		pattern[8] = 0b001;
+		pattern[12] = 0b011;
 
     while (1)
     {
@@ -72,132 +80,279 @@ int main(void)
 			if(LEDtemp == 0) {
 				//Turn on LED 3
 				GPIOC->ODR |= (1<<8);
-				if(step%4 == 0)
+				if(step%4 == 0)		//1.000
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
+					
+					if(pattern[0] & 0b001)
+						//kick active
+					if(pattern[0] & 0b010)
+						//snare active
+					if(pattern[0] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 1)
+				else if(step%4 == 1)//1.250
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
+					
+					if(pattern[1] & 0b001)
+						//kick active
+					if(pattern[1] & 0b010)
+						//snare active
+					if(pattern[1] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 2)
+				else if(step%4 == 2)//1.500
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
+					
+					if(pattern[2] & 0b001)
+						//kick active
+					if(pattern[2] & 0b010)
+						//snare active
+					if(pattern[2] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 3)
+				else if(step%4 == 3)//1.750
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
+					
+					if(pattern[3] & 0b001)
+						//kick active
+					if(pattern[3] & 0b010)
+						//snare active
+					if(pattern[3] & 0b100)
+						//hi hat active
+						break;
 				}
 			}
 			else if (LEDtemp == 1) {
 				//Turn on LED 2
 				GPIOC->ODR |= (1<<7);
-				if(step%4 == 0)
+				if(step%4 == 0)//2.000
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
+					
+					if(pattern[4] & 0b001)
+						//kick active
+					if(pattern[4] & 0b010)
+						//snare active
+					if(pattern[4] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 1)
+				else if(step%4 == 1)//2.250
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
+					
+					if(pattern[5] & 0b001)
+						//kick active
+					if(pattern[5] & 0b010)
+						//snare active
+					if(pattern[5] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 2)
+				else if(step%4 == 2)//2.500
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
+					
+					if(pattern[6] & 0b001)
+						//kick active
+					if(pattern[6] & 0b010)
+						//snare active
+					if(pattern[6] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 3)
+				else if(step%4 == 3)//2.750
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
+					
+					if(pattern[7] & 0b001)
+						//kick active
+					if(pattern[7] & 0b010)
+						//snare active
+					if(pattern[7] & 0b100)
+						//hi hat active
+						break;
 				}
 			}
 			else if (LEDtemp == 2) {
 				//Turn on LED 1
 				GPIOA->ODR |= (1<<0);
-				if(step%4 == 0)
+				if(step%4 == 0)//3.000
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
+					
+					if(pattern[8] & 0b001)
+						//kick active
+					if(pattern[8] & 0b010)
+						//snare active
+					if(pattern[8] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 1)
+				else if(step%4 == 1)//3.250
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
+					
+					if(pattern[9] & 0b001)
+						//kick active
+					if(pattern[9] & 0b010)
+						//snare active
+					if(pattern[9] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 2)
+				else if(step%4 == 2)//3.500
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
+					
+					if(pattern[10] & 0b001)
+						//kick active
+					if(pattern[10] & 0b010)
+						//snare active
+					if(pattern[10] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 3)
+				else if(step%4 == 3)//3.750
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
+					
+					if(pattern[11] & 0b001)
+						//kick active
+					if(pattern[11] & 0b010)
+						//snare active
+					if(pattern[11] & 0b100)
+						//hi hat active
+						break;
 				}
 			}
 			else if (LEDtemp == 3) {
 				//Turn on LED 0
 				GPIOA->ODR |= (1<<1);
-				if(step%4 == 0)
+				if(step%4 == 0)//4.000
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
+					
+					if(pattern[12] & 0b001)
+						//kick active
+					if(pattern[12] & 0b010)
+						//snare active
+					if(pattern[12] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 1)
+				else if(step%4 == 1)//4.250
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
+					
+					if(pattern[13] & 0b001)
+						//kick active
+					if(pattern[13] & 0b010)
+						//snare active
+					if(pattern[13] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 2)
+				else if(step%4 == 2)//4.500
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
+					
+					if(pattern[14] & 0b001)
+						//kick active
+					if(pattern[14] & 0b010)
+						//snare active
+					if(pattern[14] & 0b100)
+						//hi hat active
+						break;
 				}
-				else if(step%4 == 3)
+				else if(step%4 == 3)//4.750
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
+					
+					if(pattern[15] & 0b001)
+						//kick active
+					if(pattern[15] & 0b010)
+						//snare active
+					if(pattern[15] & 0b100)
+						//hi hat active
+						break;
 				}
 			}
     }
+}
+
+void Init_buzzer()
+{
+uint32_t temp;
+RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;		/* enable GPIOC clock */
+
+temp = GPIOC->MODER;
+temp &= ~(0x03<<(2*9)); 
+temp|=(0x01<<(2*9)); 
+GPIOC->MODER = temp;
+
+temp=GPIOC->OTYPER;
+temp &=~(0x01<<9); 
+GPIOC->OTYPER=temp;
+
+temp=GPIOC->PUPDR;
+temp&=~(0x03<<(2*9)); 
+GPIOC->PUPDR=temp;
 }
 
 

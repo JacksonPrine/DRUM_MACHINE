@@ -31,6 +31,7 @@ void Write_SR_7S(uint8_t temp_Enable, uint8_t temp_Digit);
 void Write_7Seg(uint8_t temp_Enable, uint8_t temp_Digit);
 void Delay(volatile uint32_t count);
 void Init_buzzer(void);
+//Buzzer Functions for testing. 
 void Play_Buzz_Kick(void);
 void Play_Buzz_Snare(void);
 void Play_Buzz_Hat(void);
@@ -53,7 +54,7 @@ uint8_t pattern[BEAT_SIZE];
 //notice that the "volatile" keyword is used, since we will very often be editing step's value.
 volatile uint8_t step = 0;
 //Mode: 0 is Beat Build Mode, 1 is Play mode. Starts on Beat Build Mode.
-uint8_t mode = 1;
+uint8_t mode = 0;
 int main(void)
 {
     HAL_Init();
@@ -67,14 +68,44 @@ int main(void)
 	
 		Init_buzzer();
 	
+	//Setting some steps to test.
 		pattern[0] = 1;
 		pattern[4] = 2;
 		pattern[8] = 1;
 		pattern[12] = 2;
 
+		
     while (1)
     {
-			
+    if(Read_Keypad() == 13)
+    {
+        if(mode == 0)
+            mode = 1;
+        else
+            mode = 0;
+
+        Delay(10);
+
+        while(Read_Keypad() == 13)
+        {
+            // wait until key is released
+        }
+
+        Delay(10);
+    }
+
+			if(mode == 0) {
+				if((GPIOB->IDR & (1<<8)) != 0) {
+					HAL_Delay(25);
+					if(step < 15)
+						step++;
+					else
+						step = 0;
+					while((GPIOB->IDR & (1<<8)) != 0)
+						{}
+					HAL_Delay(25);
+				}
+		}
 			//Turn all LEDs off
 			GPIOA->ODR &= ~(1<<1);
 			GPIOA->ODR &= ~(1<<0);
@@ -92,12 +123,14 @@ int main(void)
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
 					
-					if(pattern[0] == 1)
-						Play_Buzz_Kick();
-					if(pattern[0] == 2)
-						Play_Buzz_Snare();
-					if(pattern[0] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[0] == 1)
+							Play_Buzz_Kick();
+						if(pattern[0] == 2)
+							Play_Buzz_Snare();
+						if(pattern[0] == 3) {
+							Play_Buzz_Hat();
+					}
 					}
 				}
 				else if(step%4 == 1)//1.250
@@ -107,12 +140,14 @@ int main(void)
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
 					
-					if(pattern[1] == 1)
-						Play_Buzz_Kick();
-					if(pattern[1] == 2)
-						Play_Buzz_Snare();
-					if(pattern[1] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[1] == 1)
+							Play_Buzz_Kick();
+						if(pattern[1] == 2)
+							Play_Buzz_Snare();
+						if(pattern[1] == 3) {
+							Play_Buzz_Hat();
+					}
 					}
 				}
 				else if(step%4 == 2)//1.500
@@ -122,13 +157,15 @@ int main(void)
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
 					
-					if(pattern[2] == 1)
-						Play_Buzz_Kick();
-					if(pattern[2] == 2)
-						Play_Buzz_Snare();
-					if(pattern[2] == 3) {
-						Play_Buzz_Hat();
-					}
+					if (mode == 1) {
+						if(pattern[2] == 1)
+							Play_Buzz_Kick();
+						if(pattern[2] == 2)
+							Play_Buzz_Snare();
+						if(pattern[2] == 3) {
+							Play_Buzz_Hat();
+						}
+				}
 				}
 				else if(step%4 == 3)//1.750
 				{
@@ -137,12 +174,14 @@ int main(void)
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
 					
-					if(pattern[3] == 1)
-						Play_Buzz_Kick();
-					if(pattern[3] == 2)
-						Play_Buzz_Snare();
-					if(pattern[3] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[3] == 1)
+							Play_Buzz_Kick();
+						if(pattern[3] == 2)
+							Play_Buzz_Snare();
+						if(pattern[3] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 			}
@@ -156,12 +195,14 @@ int main(void)
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
 					
-					if(pattern[4] == 1)
-						Play_Buzz_Kick();
-					if(pattern[4] == 2)
-						Play_Buzz_Snare();
-					if(pattern[4] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[4] == 1)
+							Play_Buzz_Kick();
+						if(pattern[4] == 2)
+							Play_Buzz_Snare();
+						if(pattern[4] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 1)//2.250
@@ -171,12 +212,14 @@ int main(void)
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
 					
-					if(pattern[5] == 1)
-						Play_Buzz_Kick();
-					if(pattern[5] == 2)
-						Play_Buzz_Snare();
-					if(pattern[5] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[5] == 1)
+							Play_Buzz_Kick();
+						if(pattern[5] == 2)
+							Play_Buzz_Snare();
+						if(pattern[5] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 2)//2.500
@@ -186,12 +229,14 @@ int main(void)
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
 					
-					if(pattern[6] == 1)
-						Play_Buzz_Kick();
-					if(pattern[6] == 2)
-						Play_Buzz_Snare();
-					if(pattern[6] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[6] == 1)
+							Play_Buzz_Kick();
+						if(pattern[6] == 2)
+							Play_Buzz_Snare();
+						if(pattern[6] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 3)//2.750
@@ -201,12 +246,14 @@ int main(void)
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x24); Delay(1);
 					
-					if(pattern[7] == 1)
-						Play_Buzz_Kick();
-					if(pattern[7] == 2)
-						Play_Buzz_Snare();
-					if(pattern[7] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[7] == 1)
+							Play_Buzz_Kick();
+						if(pattern[7] == 2)
+							Play_Buzz_Snare();
+						if(pattern[7] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 			}
@@ -220,12 +267,14 @@ int main(void)
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
 					
-					if(pattern[8] == 1)
-						Play_Buzz_Kick();
-					if(pattern[8] == 2)
-						Play_Buzz_Snare();
-					if(pattern[8] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[8] == 1)
+							Play_Buzz_Kick();
+						if(pattern[8] == 2)
+							Play_Buzz_Snare();
+						if(pattern[8] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 1)//3.250
@@ -235,12 +284,14 @@ int main(void)
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
 					
-					if(pattern[9] == 1)
-						Play_Buzz_Kick();
-					if(pattern[9] == 2)
-						Play_Buzz_Snare();
-					if(pattern[9] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[9] == 1)
+							Play_Buzz_Kick();
+						if(pattern[9] == 2)
+							Play_Buzz_Snare();
+						if(pattern[9] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 2)//3.500
@@ -250,12 +301,14 @@ int main(void)
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
 					
-					if(pattern[10] == 1)
-						Play_Buzz_Kick();
-					if(pattern[10] == 2)
-						Play_Buzz_Snare();
-					if(pattern[10] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[10] == 1)
+							Play_Buzz_Kick();
+						if(pattern[10] == 2)
+							Play_Buzz_Snare();
+						if(pattern[10] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 3)//3.750
@@ -265,12 +318,14 @@ int main(void)
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x30); Delay(1);
 					
-					if(pattern[11] == 1)
-						Play_Buzz_Kick();
-					if(pattern[11] == 2)
-						Play_Buzz_Snare();
-					if(pattern[11] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[11] == 1)
+							Play_Buzz_Kick();
+						if(pattern[11] == 2)
+							Play_Buzz_Snare();
+						if(pattern[11] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 			}
@@ -284,12 +339,14 @@ int main(void)
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
 					
-					if(pattern[12] == 1)
-						Play_Buzz_Kick();
-					if(pattern[12] == 2)
-						Play_Buzz_Snare();
-					if(pattern[12] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[12] == 1)
+							Play_Buzz_Kick();
+						if(pattern[12] == 2)
+							Play_Buzz_Snare();
+						if(pattern[12] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 1)//4.250
@@ -299,12 +356,14 @@ int main(void)
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
 					
-					if(pattern[13] == 1)
-						Play_Buzz_Kick();
-					if(pattern[13] == 2)
-						Play_Buzz_Snare();
-					if(pattern[13] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[13] == 1)
+							Play_Buzz_Kick();
+						if(pattern[13] == 2)
+							Play_Buzz_Snare();
+						if(pattern[13] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 2)//4.500
@@ -314,12 +373,14 @@ int main(void)
 					Write_7Seg(2, 5); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
 					
-					if(pattern[14] == 1)
-						Play_Buzz_Kick();
-					if(pattern[14] == 2)
-						Play_Buzz_Snare();
-					if(pattern[14] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[14] == 1)
+							Play_Buzz_Kick();
+						if(pattern[14] == 2)
+							Play_Buzz_Snare();
+						if(pattern[14] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 				else if(step%4 == 3)//4.750
@@ -329,12 +390,14 @@ int main(void)
 					Write_7Seg(2, 7); Delay(1);
 					Write_SR_7S(0x08, 0x19); Delay(1);
 					
-					if(pattern[15] == 1)
-						Play_Buzz_Kick();
-					if(pattern[15] == 2)
-						Play_Buzz_Snare();
-					if(pattern[15] == 3) {
-						Play_Buzz_Hat();
+					if (mode == 1) {
+						if(pattern[15] == 1)
+							Play_Buzz_Kick();
+						if(pattern[15] == 2)
+							Play_Buzz_Snare();
+						if(pattern[15] == 3) {
+							Play_Buzz_Hat();
+						}
 					}
 				}
 			}

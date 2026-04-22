@@ -43,91 +43,82 @@ uint8_t pattern[BEAT_SIZE];
 volatile uint8_t step = 0;
 //Mode: 0 is Beat Build Mode, 1 is Play mode. Starts on Beat Build Mode.
 volatile uint8_t mode = 0;
+
 int main(void)
 {
-    HAL_Init();
-	HAL_Delay(100); 
-    SystemClock_Config();
-	int last_key = 255;
-	int key;
-	//Turn off all LEDs in Init
-	MX_GPIO_Init();
-	//Initializing timer 2 to interrupt at 120 bpm.
-	Init_Timer2();
-	
-    while (1)
+  HAL_Init();
+      HAL_Delay(100);
+  SystemClock_Config();
+      int temp;
+      int key;
+      //Turn off all LEDs in Init
+      MX_GPIO_Init();
+      //Initializing timer 2 to interrupt at 120 bpm.
+      Init_Timer2();
+      
+            uint8_t last = 255;
+            HAL_Delay(25);
+            int last_mode = 1;
+while (1)
+{
+    temp = Read_Keypad();
+
+    // detect NEW press only
+    if(temp == 15 && last != 15)
     {
-			key = Read_Keypad();
-			GPIOA->ODR &= ~(1<<1);
-			GPIOA->ODR &= ~(1<<0);
-			GPIOC->ODR &= ~(1<<8);
-			GPIOC->ODR &= ~(1<<7);
-			if(key == 15&&last_key!=15)
-			{
-				GPIOA->ODR &= ~(1<<1);
-				GPIOA->ODR &= ~(1<<0);
-				GPIOC->ODR &= ~(1<<8);
-				GPIOC->ODR &= ~(1<<7);
-				mode++;
-				if(mode>1)
-					mode=0;
-			}
-			last_key = key;
-			
-			if(mode == 0)
-			{
-				
-				step =0;
-				if(key == 14)
-				{
-					step++;
-					if(step > 15)
-						step = 0;
-				}
+        mode++;
+        if(mode > 1)
+            mode = 0;
+    }
+    last = temp;
 
-				int LEDtemp = step / 4;
-				if(LEDtemp == 0) {
-					//Turn on LED 3
-					GPIOC->ODR |= (1<<8);
-				}
-				else if (LEDtemp == 1) {
-					//Turn on LED 2
-					GPIOC->ODR |= (1<<7);
-				}
-				else if (LEDtemp == 2) {
-					//Turn on LED 1
-					GPIOA->ODR |= (1<<0);
-				}
-				else if (LEDtemp == 3) {
-					//Turn on LED 0
-					GPIOA->ODR |= (1<<1);
-				}
-				
-				
-			}
+    // ?? ONLY update LCD when mode changes
+    if(mode != last_mode)
+    {
+        Write_Instr_LCD(0x01);
 
-			if(mode == 1)
-			{
-				int LEDtemp = step / 4;
-				if(LEDtemp == 0) {
-					//Turn on LED 3
-					GPIOC->ODR |= (1<<8);
-				}
-				else if (LEDtemp == 1) {
-					//Turn on LED 2
-					GPIOC->ODR |= (1<<7);
-				}
-				else if (LEDtemp == 2) {
-					//Turn on LED 1
-					GPIOA->ODR |= (1<<0);
-				}
-				else if (LEDtemp == 3) {
-					//Turn on LED 0
-					GPIOA->ODR |= (1<<1);
-				}
-			}
+        if(mode == 0)
+        {
+						GPIOA->ODR &= ~((1<<0) | (1<<1));
+						GPIOC->ODR &= ~((1<<7) | (1<<8));
+            Write_Instr_LCD(0x80);
+            Write_String_LCD("Beat Build Mode!");
+						key = Read_Keypad();
+						if(key == 14) step++;
+						if (GPIOB->IDR & (1 << 8))
+						{
+							GPIOC->ODR |= (1<<8); // SW5 is pressed
+						}
+						if(key== 4) GPIOC->ODR |= (1<<7);
+						else if(key == 7) GPIOA->ODR |= (1<<0);
+								
+                                    
+        }
+        else if(mode == 1)
+        {
+            Write_Instr_LCD(0x80);
+            Write_String_LCD("Play Mode!");
+        }
+
+        last_mode = mode;
+    }
+
+    // ?? ALWAYS run LED logic (continuous)
+    if(mode == 1)
+    {
+        GPIOA->ODR &= ~((1<<0) | (1<<1));
+        GPIOC->ODR &= ~((1<<7) | (1<<8));
+
+        int LEDtemp = step / 4;
+
+        if(LEDtemp == 0) GPIOC->ODR |= (1<<8);
+        else if(LEDtemp == 1) GPIOC->ODR |= (1<<7);
+        else if(LEDtemp == 2) GPIOA->ODR |= (1<<0);
+        else if(LEDtemp == 3) GPIOA->ODR |= (1<<1);
     }
 }
+}
+
 
 
 // Set up the GPIO pins
@@ -140,54 +131,54 @@ RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
       RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;
       RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
                  
-			//LED0
-			temp = GPIOA->MODER;
-			temp &= ~(0x03<<(2*1));
-			temp|=(0x01<<(2*1));
-			GPIOA->MODER = temp;
-			temp=GPIOA->OTYPER;
-			temp &=~(0x01<<1);
-			GPIOA->OTYPER=temp;
-			temp=GPIOA->PUPDR;
-			temp&=~(0x03<<(2*1));
-			GPIOA->PUPDR=temp;
-      
-				//LED1
-			temp = GPIOA->MODER;
-			temp &= ~(0x03<<(2*0));
-			temp|=(0x01<<(2*0));
-			GPIOA->MODER = temp;
-			temp=GPIOA->OTYPER;
-			temp &=~(0x01<<0);
-			GPIOA->OTYPER=temp;
-			temp=GPIOA->PUPDR;
-			temp&=~(0x03<<(2*0));
-			GPIOA->PUPDR=temp;
+                  //LED0
+                  temp = GPIOA->MODER;
+                  temp &= ~(0x03<<(2*1));
+                  temp|=(0x01<<(2*1));
+                  GPIOA->MODER = temp;
+                  temp=GPIOA->OTYPER;
+                  temp &=~(0x01<<1);
+                  GPIOA->OTYPER=temp;
+                  temp=GPIOA->PUPDR;
+                  temp&=~(0x03<<(2*1));
+                  GPIOA->PUPDR=temp;
+     
+                        //LED1
+                  temp = GPIOA->MODER;
+                  temp &= ~(0x03<<(2*0));
+                  temp|=(0x01<<(2*0));
+                  GPIOA->MODER = temp;
+                  temp=GPIOA->OTYPER;
+                  temp &=~(0x01<<0);
+                  GPIOA->OTYPER=temp;
+                  temp=GPIOA->PUPDR;
+                  temp&=~(0x03<<(2*0));
+                  GPIOA->PUPDR=temp;
 
 
-			//LED2
-			temp = GPIOC->MODER;
-			temp &= ~(0x03<<(2*7));
-			temp|=(0x01<<(2*7));
-			GPIOC->MODER = temp;
-			temp=GPIOC->OTYPER;
-			temp &=~(0x01<<7);
-			GPIOC->OTYPER=temp;
-			temp=GPIOC->PUPDR;
-			temp&=~(0x03<<(2*7));
-			GPIOC->PUPDR=temp;
+                  //LED2
+                  temp = GPIOC->MODER;
+                  temp &= ~(0x03<<(2*7));
+                  temp|=(0x01<<(2*7));
+                  GPIOC->MODER = temp;
+                  temp=GPIOC->OTYPER;
+                  temp &=~(0x01<<7);
+                  GPIOC->OTYPER=temp;
+                  temp=GPIOC->PUPDR;
+                  temp&=~(0x03<<(2*7));
+                  GPIOC->PUPDR=temp;
 
-			//LED3
-			temp = GPIOC->MODER;
-			temp &= ~(0x03<<(2*8));
-			temp|=(0x01<<(2*8));
-			GPIOC->MODER = temp;
-			temp=GPIOC->OTYPER;
-			temp &=~(0x01<<8);
-			GPIOC->OTYPER=temp;
-			temp=GPIOC->PUPDR;
-			temp&=~(0x03<<(2*8));
-			GPIOC->PUPDR=temp;
+                  //LED3
+                  temp = GPIOC->MODER;
+                  temp &= ~(0x03<<(2*8));
+                  temp|=(0x01<<(2*8));
+                  GPIOC->MODER = temp;
+                  temp=GPIOC->OTYPER;
+                  temp &=~(0x01<<8);
+                  GPIOC->OTYPER=temp;
+                  temp=GPIOC->PUPDR;
+                  temp&=~(0x03<<(2*8));
+                  GPIOC->PUPDR=temp;
 
      
 // Initialization of 7 seg    
@@ -429,53 +420,53 @@ uint8_t Read_Keypad()
 }
 
 void Init_Timer2() {
-	//Enabling timer 2 clock
-	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
-	
-	//Selecting upcounting mode for Timer2
-	TIM2->CR1 &= ~TIM_CR1_DIR;
-	
-	//Note: We are initalizing PSC and ARR to fit a Beats Per Minute (BPM) of 120. 
-	
-	//Setting the prescaler, which slows down the input clock by (1 + prescaler)
-	TIM2->PSC = 399; //4 MHz (system clock) / 399 + 1 = 10,000 Hz
-	
-	//Setting the auto-reload, which is how often the the timer2 restarts
-	TIM2->ARR = 1249; // 10,000/(1249+1) = 8 Hz.
-	
-	//This line immediately updates Timer 2's PRC and ARR, preventing anything weird happening during first timer cycle.
-	TIM2->EGR |= TIM_EGR_UG;
-	
-	//Clearing the UIF (Update Interupt Flag). Must be done after
-	TIM2->SR &= ~TIM_SR_UIF;
-	
-	//Enabling update interrupts
-	TIM2->DIER |= TIM_DIER_UIE;
-	
-	//Enabling TIM2 interrupt in NVIC
-	NVIC_EnableIRQ(TIM2_IRQn);
-																																																							
-	//Enabling counter (So timer actually increments)
-	TIM2->CR1 |= TIM_CR1_CEN;
-	
+      //Enabling timer 2 clock
+      RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
+      
+      //Selecting upcounting mode for Timer2
+      TIM2->CR1 &= ~TIM_CR1_DIR;
+      
+      //Note: We are initalizing PSC and ARR to fit a Beats Per Minute (BPM) of 120.
+      
+      //Setting the prescaler, which slows down the input clock by (1 + prescaler)
+      TIM2->PSC = 399; //4 MHz (system clock) / 399 + 1 = 10,000 Hz
+      
+      //Setting the auto-reload, which is how often the the timer2 restarts
+      TIM2->ARR = 1249; // 10,000/(1249+1) = 8 Hz.
+      
+      //This line immediately updates Timer 2's PRC and ARR, preventing anything weird happening during first timer cycle.
+      TIM2->EGR |= TIM_EGR_UG;
+      
+      //Clearing the UIF (Update Interupt Flag). Must be done after
+      TIM2->SR &= ~TIM_SR_UIF;
+      
+      //Enabling update interrupts
+      TIM2->DIER |= TIM_DIER_UIE;
+      
+      //Enabling TIM2 interrupt in NVIC
+      NVIC_EnableIRQ(TIM2_IRQn);
+                                                                                                                                                                                                                                                                                                                                          
+      //Enabling counter (So timer actually increments)
+      TIM2->CR1 |= TIM_CR1_CEN;
+      
 }
 
 void TIM2_IRQHandler(void) {
-	//check if the interrupt flag is set.
-	if(TIM2->SR & TIM_SR_UIF) {
-		
-			//if so, clear it
-			TIM2->SR &= ~TIM_SR_UIF;
-			//progressing 1 step in the sequence. (if we are in Play Mode).
-			if(mode == 1) {
-			step++;
-			
-			//wrapping back to start of sequence.
-			if(step >= BEAT_SIZE) {
-				step = 0;
-			}
-			}
-	}
+      //check if the interrupt flag is set.
+      if(TIM2->SR & TIM_SR_UIF) {
+            
+                  //if so, clear it
+                  TIM2->SR &= ~TIM_SR_UIF;
+                  //progressing 1 step in the sequence. (if we are in Play Mode).
+                  if(mode == 1) {
+                  step++;
+                  
+                  //wrapping back to start of sequence.
+                  if(step >= BEAT_SIZE) {
+                        step = 0;
+                  }
+                  }
+      }
 }
 
 void Write_SR_LCD(uint8_t temp)

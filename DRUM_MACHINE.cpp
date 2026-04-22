@@ -77,7 +77,7 @@ int main(void)
 		
     while (1)
     {
-    if(Read_Keypad() == 13)
+    if(Read_Keypad() == 15)
     {
         if(mode == 0)
             mode = 1;
@@ -86,10 +86,7 @@ int main(void)
 
         Delay(10);
 
-        while(Read_Keypad() == 13)
-        {
-            // wait until key is released
-        }
+        while(Read_Keypad() == 15) {} // wait until key is released
 
         Delay(10);
     }
@@ -105,6 +102,51 @@ int main(void)
 						{}
 					HAL_Delay(25);
 				}
+				
+				if((GPIOB->IDR & (1<<9)) != 0) {
+					HAL_Delay(25);
+					if(step < 15)
+					{
+						pattern[step] = 3;
+						step++;
+					}
+					else
+						step = 0;
+					while((GPIOB->IDR & (1<<9)) != 0)
+						{}
+					HAL_Delay(25);
+				}
+				
+				if((GPIOB->IDR & (1<<10)) != 0) 
+				{
+					HAL_Delay(25);
+					if(step < 15)
+					{
+						pattern[step] = 2;
+						step++;
+					}
+					else
+						step = 0;
+					while((GPIOB->IDR & (1<<10)) != 0)
+						{}
+					HAL_Delay(25);
+				}
+				
+				if((GPIOB->IDR & (1<<11)) != 0) 
+				{
+					HAL_Delay(25);
+					if(step < 15)
+					{
+						pattern[step] = 1;
+						step++;
+					}
+					else
+						step = 0;
+					while((GPIOB->IDR & (1<<11)) != 0)
+						{}
+					HAL_Delay(25);
+				}
+				
 		}
 			//Turn all LEDs off
 			GPIOA->ODR &= ~(1<<1);

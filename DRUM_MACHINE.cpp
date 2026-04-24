@@ -77,10 +77,13 @@ int main(void)
 		
     while (1)
     {
+		//if the "#" key is pressed this will increment the mode
     if(Read_Keypad() == 15)
     {
+		//if the mode is 0 swap to mode 1
         if(mode == 0)
             mode = 1;
+		//if the mode is anything other than mode 0 swap back to mode 0
         else
             mode = 0;
 
@@ -90,14 +93,18 @@ int main(void)
 
         Delay(10);
     }
-
+			//this is our beat creation mode
 			if(mode == 0) {
+				//when the "SW5" button is pressed increment the step
 				if((GPIOB->IDR & (1<<8)) != 0) {
 					HAL_Delay(25);
+					//only increment step when step is less than 15
 					if(step < 15)
 						step++;
+					// if not less than 15 wrap back to step 0
 					else
 						step = 0;
+					//wait until "SW5" button is released
 					while((GPIOB->IDR & (1<<8)) != 0)
 						{}
 					HAL_Delay(25);

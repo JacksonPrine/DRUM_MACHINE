@@ -46,17 +46,18 @@ void Play_Buzz_Snare(void);
 void Play_Buzz_Hat(void);
 void Init_SineTable(void);
 
-
+//notice that the "volatile" keyword is used, since we will very often be editing these values
 volatile uint32_t angle;
 volatile uint32_t stepSize;
 volatile uint32_t frequency;
 
+//defining global values.
 #define SAMPLE_RATE 10000.0f
 #define TWO_PI 6.2831853f
 #define TABLE_SIZE 256
 float sine_table[TABLE_SIZE];
 
-// structs for different drum sounds
+// structs for kick. Index: where we are in the waveform. Step: How fast we progress through the waveform. Env: How quickly the waveform decays.
 typedef struct {
     float index;
     float step;
@@ -64,13 +65,15 @@ typedef struct {
     uint8_t active;
 } Kick;
 
+//Startup sound maybe will be implemented when program starts.
 typedef struct {
-    float index;
-    float step;
+    float freq;
     float env;
+		float phase;
     uint8_t active;
 } Startup;
 
+//struct for snare. hp1: high pass filter stage 1. h2: high pass filter stage 2. bp: bandpass filter.
 typedef struct {
     float env;
 		float hp1;
@@ -79,7 +82,7 @@ typedef struct {
     uint8_t active;
 } NoiseVoice;
 
-// 
+//notice that the "volatile" keyword is used, since we will very often be editing these values
 volatile Kick kick;
 volatile Startup startup;
 
@@ -100,16 +103,17 @@ static uint32_t noiseSeed = 1;
 //globally defining the sequence size as 16
 #define BEAT_SIZE 16
 
+//Array that will be used for the whole drum beat.
 uint8_t pattern[BEAT_SIZE];
 
 
-//notice that the "volatile" keyword is used, since we will very often be editing step's value.
 volatile uint8_t step = 0;
 //Mode: 0 is Beat Build Mode, 1 is Play mode. Starts on Beat Build Mode.
 uint8_t mode = 0;
 int main(void)
 {
 	
+	//Initializing
     HAL_Init();
 		HAL_Delay(100); 
     SystemClock_Config();
@@ -118,11 +122,27 @@ int main(void)
 		MX_GPIO_Init();
 		//Initializing timer 2 to interrupt at desired tempo.
 		Init_Timer2();
-		//maybe put priority.
 	  DAC_Channel1_Init();
     Init_Timer4();
 	 Init_SineTable();
 
+
+
+
+	//Starting message is Beat Build Mode.
+		char* line1;
+	line1 = "Beat Build Mode:";
+	
+		char* line2;
+		line2 ="Create The Beat!";
+		
+		char* line3;
+		line3 = "Play Mode:";
+	
+		char* line4;
+		line4 ="Enjoy!";
+	
+	//Test initialization to see if sounds and logic work.
 		//pattern[0] = 1;
 		//pattern[2] = 3;
 		//pattern[3] = 1;
@@ -132,19 +152,40 @@ int main(void)
 		//pattern [12] = 2;
 		//pattern [14] = 3;
 		//Init_buzzer();
+		//trigger startup sound... if implemented.
 		trigger_startup();
 
+
+			
+			//Write startup message.
+			Write_String_LCD(line1);
+			Write_Instr_LCD(0xc0);
+			Write_String_LCD(line2);
 		
     while (1)
     {
+			//check if octothorpe key is pressed, if it is, change the mode, and display new mode on LCD.
     if(Read_Keypad() == 15)
     {
         if(mode == 0) {
+					Write_Instr_LCD(0x01);
+					Write_String_LCD(line3);
+					Write_Instr_LCD(0xc0);
+					Write_String_LCD(line4);
+					
+					step--;
             mode = 1;
 				}
-        else
-            mode = 0;
+        else {
+				  mode = 0;
+					Write_Instr_LCD(0x01);
+					Write_String_LCD(line1);
+					Write_Instr_LCD(0xc0);
+					Write_String_LCD(line2);
+				}
 
+
+				//Debouncing
         Delay(10);
 
         while(Read_Keypad() == 15) {} // wait until key is released
@@ -152,9 +193,12 @@ int main(void)
         Delay(10);
     }
 
+		//MODE 0: BEAT BUILDING MODE
 			if(mode == 0) {
+				//check if SW5 is pressed, if it is, progress the beat.
 				if((GPIOB->IDR & (1<<8)) != 0) {
 					HAL_Delay(25);
+					//wrap around logic.
 					if(step < 15)
 						step++;
 					else
@@ -163,69 +207,88 @@ int main(void)
 						{}
 					HAL_Delay(25);
 				}
-				
+				//if SW4 is pressed, add hi hat and progress the beat.
 				if((GPIOB->IDR & (1<<9)) != 0) {
 					HAL_Delay(25);
-					if(step <= 15)
+					if(step < 15)
 					{
 						pattern[step] = 3;
+						trigger_hat();
 						step++;
 					}
-					else
+					else {
+						pattern[step] = 3;
+						trigger_hat();
 						step = 0;
+					}
 					while((GPIOB->IDR & (1<<9)) != 0)
 						{}
 					HAL_Delay(25);
 				}
 				
+				//pressing SW3 is pressed, add snare & progress step.
 				if((GPIOB->IDR & (1<<10)) != 0) 
 				{
 					HAL_Delay(25);
-					if(step <= 15)
+					if(step < 15)
 					{
 						pattern[step] = 2;
+						trigger_snare();
 						step++;
 					}
-					else
+					else {
+						pattern[step] = 2;
+						trigger_snare();
 						step = 0;
+					}
 					while((GPIOB->IDR & (1<<10)) != 0)
 						{}
 					HAL_Delay(25);
 				}
 				
+				//if SW2 is pressed, add kick drum and progress in the beat.
 				if((GPIOB->IDR & (1<<11)) != 0) 
 				{
 					HAL_Delay(25);
-					if(step <= 15)
+					if(step < 15)
 					{
 						pattern[step] = 1;
+						trigger_kick();
 						step++;
 					}
-					else
+					else {
+						pattern[step] = 1;
+						trigger_kick();
 						step = 0;
+					}
 					while((GPIOB->IDR & (1<<11)) != 0)
 						{}
 					HAL_Delay(25);
 				}
 				
 		}
+			
+		//BELOW IS THE LOGIC FOR THE PLAY HEAD
 			//Turn all LEDs off
 			GPIOA->ODR &= ~(1<<1);
 			GPIOA->ODR &= ~(1<<0);
 			GPIOC->ODR &= ~(1<<8);
 			GPIOC->ODR &= ~(1<<7);
 			
+		//for steps 0-3, LED3 should be on.
 			int LEDtemp = step / 4;
 			if(LEDtemp == 0) {
 				//Turn on LED 3
 				GPIOC->ODR |= (1<<8);
 				if(step%4 == 0)		//1.000
 				{
+					//update 16th note division on 7-Segments.
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
 					Write_7Seg(2, 0); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
 					
+					//these blocks were used for testing w/ the buzzer functions.
 					if (mode == 1) {
 						if(pattern[0] == 1)
 							//Play_Buzz_Kick();
@@ -238,10 +301,12 @@ int main(void)
 				}
 				else if(step%4 == 1)//1.250
 				{
+					//update 16th note division on 7-Segments. the blocks of code for the remaining steps are very similar and self-explanatory. 
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
 					Write_7Seg(2, 2); Delay(1);
 					Write_SR_7S(0x08, 0x79); Delay(1);
+					
 					
 					if (mode == 1) {
 						if(pattern[1] == 1)
@@ -288,6 +353,7 @@ int main(void)
 					}
 				}
 			}
+			//for beats 4-7 LED2 is on.
 			else if (LEDtemp == 1) {
 				//Turn on LED 2
 				GPIOC->ODR |= (1<<7);
@@ -360,6 +426,7 @@ int main(void)
 					}
 				}
 			}
+			//for steps 8-11, LED1 should be on.
 			else if (LEDtemp == 2) {
 				//Turn on LED 1
 				GPIOA->ODR |= (1<<0);
@@ -432,6 +499,7 @@ int main(void)
 					}
 				}
 			}
+			//for steps 12-15, LED0 should be on.
 			else if (LEDtemp == 3) {
 				//Turn on LED 0
 				GPIOA->ODR |= (1<<1);
@@ -832,18 +900,18 @@ void Init_Timer2() {
 	//Selecting upcounting mode for Timer2
 	TIM2->CR1 &= ~TIM_CR1_DIR;
 	
-	//Note: We are initalizing PSC and ARR to fit a Beats Per Minute (BPM) of 120. 
+	//Note: We are initalizing PSC and ARR to fit a Beats Per Minute (BPM) of 60. 
 	
 	//Setting the prescaler, which slows down the input clock by (1 + prescaler)
 	TIM2->PSC = 399; //4 MHz (system clock) / 399 + 1 = 10,000 Hz
 	
 	//Setting the auto-reload, which is how often the the timer2 restarts
-	TIM2->ARR = 2499; // 10,000/(1249+1) = 8 Hz.
+	TIM2->ARR = 2499; // 10,000/(2499+1) = 4 Hz.
 	
 	//This line immediately updates Timer 2's PRC and ARR, preventing anything weird happening during first timer cycle.
 	TIM2->EGR |= TIM_EGR_UG;
 	
-	//Clearing the UIF (Update Interupt Flag). Must be done after
+	//Clearing the UIF (Update Interupt Flag).
 	TIM2->SR &= ~TIM_SR_UIF;
 	
 	//Enabling update interrupts
@@ -951,6 +1019,7 @@ for(i=0; i<8; i++) {
 
 void DAC_Channel1_Init(void)
 {
+	//Enabling DAC 1 clock
     RCC->APB1ENR1 |= RCC_APB1ENR1_DAC1EN;
     RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
 
@@ -973,6 +1042,7 @@ void DAC_Channel1_Init(void)
 
 void DAC_Channel2_Init(void)
 {
+	//Enabling DAC 2 clock
     RCC->APB1ENR1 |= RCC_APB1ENR1_DAC1EN;
     RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
 
@@ -995,26 +1065,37 @@ void DAC_Channel2_Init(void)
 
 void Init_Timer4()
 {
+	//enable clock
     RCC->APB1ENR1 |= RCC_APB1ENR1_TIM4EN;
 
+	//Sampling rate of 10 kHz.
     TIM4->PSC = 39;
     TIM4->ARR = 9;
 
+	
+	//This line immediately updates Timer 2's PRC and ARR, preventing anything weird happening during first timer cycle.
     TIM4->EGR |= TIM_EGR_UG;
 
+	//Enabling update interrupts
     TIM4->DIER |= TIM_DIER_UIE;
 
+	//Setting priority for testing, not really necesarry but we were testing some things.
     NVIC_SetPriority(TIM4_IRQn, 1);
     NVIC_EnableIRQ(TIM4_IRQn);
 
+	//Enabling counter (So timer actually increments)
     TIM4->CR1 |= TIM_CR1_CEN;
 
+		//Clearing the UIF (Update Interupt Flag).
     TIM4->SR &= ~TIM_SR_UIF;
 }
 
+//noise generator
 static inline float noise(void)
 {
+	//noise seed is updated with psuedo-random constants.
     noiseSeed = 1664525 * noiseSeed + 1013904223;
+	//lower 16 bits are removed to get a 16-bit noise value. Divisor serves to return numbers in a float range (-1.0 -> 1.0)
     return ((noiseSeed >> 16) & 0xFFFF) / 32768.0f - 1.0f;
 }
 
@@ -1022,6 +1103,7 @@ void TIM4_IRQHandler(void)
 {
 
 	
+	//mix value is used when sounds are added together (Not very necessary when only 1 sound is played at a time, but sometimes one sound will bleed into another.)
 		float mix;
     if (TIM4->SR & TIM_SR_UIF)
     {
@@ -1033,10 +1115,13 @@ void TIM4_IRQHandler(void)
 
 		if (kick.active)
 		{
-				int idx = (int)kick.index & (TABLE_SIZE - 1); // wrap (works because 256)
+			// Converting floating index to integer and wrap within table size (0–255)
+			int idx = (int)kick.index & (TABLE_SIZE - 1); // wrap (works because 256)
 
+			// Reading sine wave value and scaling by envelope
 				kickOut = sine_table[idx] * kick.env;
 
+			//// Advance position in sine table 
 				kick.index += kick.step;
 
 				// decay
@@ -1045,29 +1130,33 @@ void TIM4_IRQHandler(void)
 				// pitch drop
 				kick.step *= 0.998f;
 
+			//turn off the kick whenever it becomes too quiet, preventing it from distorting other drum sounds.
 				if (kick.env < 0.1f)
 						kick.active = 0;
 		}
 
        //Snare
         float snareOut = 0.0f;
-				static float snare_lp = 0.0f;
-				static float hat_lp = 0.0f;
 				static float snare_phase = 0.0f;
 
 				if (snare.active)
 				{
 						float n = noise();
 
+					
+					// Use phase to select a sample from the sine lookup table
 						int idx = (int)snare_phase & (TABLE_SIZE - 1);
 						float tone = sine_table[idx];
+					// Advance phase to move through the waveform (controls frequency).
 						snare_phase += (TABLE_SIZE * 1500.0f) / SAMPLE_RATE;
 
 						// Strong initial crack, then short body
 						snareOut = ((0.85f * n) + (0.60f * tone)) * snare.env;
 
+					// Exponential decay of the snare amplitude
 						snare.env *= 0.99899997775f;
 
+					//stop producing sound once envelope is low enough.
 						if (snare.env < 0.2f)
 								snare.active = 0;
 				}
@@ -1092,14 +1181,17 @@ void TIM4_IRQHandler(void)
 					int i2 = (int)hat_phase2 & (TABLE_SIZE - 1);
 					int i3 = (int)hat_phase3 & (TABLE_SIZE - 1);
 
+				// Converting sine waves into square/pulse waves (more metallic)
 					float p1 = (sine_table[i1] > 0.0f) ? 1.0f : -1.0f;
 					float p2 = (sine_table[i2] > 0.0f) ? 1.0f : -1.0f;
 					float p3 = (sine_table[i3] > 0.0f) ? 1.0f : -1.0f;
 
+				// Advancing phases at different high frequencies. Random, high pitched sounds should create a hi-hat like effect. 
 					hat_phase1 += (TABLE_SIZE * 1980.0f) / SAMPLE_RATE;
 					hat_phase2 += (TABLE_SIZE * 2710.0f) / SAMPLE_RATE;
 					hat_phase3 += (TABLE_SIZE * 3440.0f) / SAMPLE_RATE;
 
+				//combining oscillators to single variable.
 					float metallic = (p1 - p2 + p3) * 0.63f;
 
 					// Very short click at the front
@@ -1118,37 +1210,47 @@ void TIM4_IRQHandler(void)
 							hat.active = 0;
 			}
 			
+			/*
 			float startOut = 0.0f;
-			if (startup.active) 
-		{
-				int idx = (int)startup.index & (TABLE_SIZE - 1); // wrap (works because 256)
+			
+        if (startup.active)
+        {
+            startup.phase += TWO_PI * startup.freq / SAMPLE_RATE;
 
-				startOut = sine_table[idx] * startup.env;
+            if (startup.phase > TWO_PI)
+                startup.phase -= TWO_PI;
+					
 
-				startup.index += startup.step;
+            startOut = sinf(startup.phase) * startup.env;
 
-				// decay
-				startup.env *= 0.99995f;
+            // envelope decay
+            startup.env *= 0.999995f;
 
-				// pitch drop
-				startup.step *= 1000.0f;
+            // pitch drop (classic kick behavior)
+           // kick.freq = 100.0f;
+						
+						startup.freq *= 20.0f;
 
-				if (startup.env < 0.1f)
-						startup.active = 0;
-		}
+            if (startup.env < 0.001f)
+                startup.active = 0;
+        }
+				*/
 	
 
-			mix = (kickOut + snareOut + (hatOut*.7f) + startOut) * 1.0f;
+//Mixing all the sounds together to send to DAC.
+			mix = ((kickOut*1.02f) + (snareOut*0.95f) + (hatOut*.77f)) * 1.0f;
 
-			// safety clamp
+			// safety clamp... this prevents sounds bleeding over into one another and creating loud, unpleasant waveforms.
 			if (mix > 1.0f) mix = 1.0f;
 			if (mix < -1.0f) mix = -1.0f;
 
+		//finally senting final mix to DAC output. This line converts our audio signal to values between 0 and 4095 (what we need for 12-bit audio).
 			DAC->DHR12R1 = (uint16_t)((mix * 0.5f + 0.5f) * 4095);
     }
 }
 
 
+//Sine table used to precompute values at the beginning of program, so we don't have to continually use the expensive sine function.
 void Init_SineTable(void)
 {
     for (int i = 0; i < TABLE_SIZE; i++)
@@ -1157,17 +1259,25 @@ void Init_SineTable(void)
     }
 }
 
+
 void trigger_kick(void)
 {
+	//resetting the value to the beginning of sine table.
     kick.index = 0;
+	//controlling the starting frequency of the kick. Scaled to sine table. Note: It should be optimal to divide by SAMPLE_RATE to scale
+	//to the sample rate, but upon testing the value of 25000 resulted in a punchier kick sound.
     kick.step = (TABLE_SIZE * 190.0f) / 25000;
+	//start envelope (intensity)
     kick.env = 1.0f;
+	//Let the TIM4 interrupt create the kick sound.
     kick.active = 1;
 }
 
 void trigger_snare(void)
 {
+	
     snare.env = 1.0f;
+	//phase used to create a fundamental tone in interrupt. It is placed into an "index" value to utilize the sine table.
     snare_phase = 0.0f;
     snare.active = 1;
 }
@@ -1177,6 +1287,7 @@ void trigger_hat(void)
     hat.env = 1.0f;
     hat.active = 1;
 
+	//phase for the different oscillators used to sythesize the hi hats. Converted to values in the sine table.
     hat_phase1 = 0.0f;
     hat_phase2 = 0.0f;
     hat_phase3 = 0.0f;
@@ -1184,6 +1295,8 @@ void trigger_hat(void)
     hat_lp2 = 0.0f;
 }
 
+
+//BELOW ARE THE BUZZER FUNCTIONS USED FOR TESTING... NOT USED IN FINAL PROGRAM.
 void Play_Buzz_Kick (void) {
 		for (int i = 0; i < 50; i++)
 		{
@@ -1203,10 +1316,11 @@ void Play_Buzz_Snare (void) {
 		}
 	}
 
+	//Used if startup sound is implemented.
 	void trigger_startup(void)
 {
-    startup.index = 0;
-    startup.step = (TABLE_SIZE * 180.0f) / SAMPLE_RATE;
+    startup.freq = 2000.0f;
+    startup.phase = 0;
     startup.env = 1.0f;
     startup.active = 1;
 }

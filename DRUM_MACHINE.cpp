@@ -109,7 +109,7 @@ int main(void)
 						{}
 					HAL_Delay(25);
 				}
-				
+				//When "SW2" is pressed will add a kick sound to the beat
 				if((GPIOB->IDR & (1<<9)) != 0) {
 					HAL_Delay(25);
 					if(step < 15)
@@ -123,7 +123,7 @@ int main(void)
 						{}
 					HAL_Delay(25);
 				}
-				
+				//When SW3 is pressed will add a snare sound to our beat
 				if((GPIOB->IDR & (1<<10)) != 0) 
 				{
 					HAL_Delay(25);
@@ -138,7 +138,7 @@ int main(void)
 						{}
 					HAL_Delay(25);
 				}
-				
+				//When SW4 is pressed will add a hihat sound to our beat
 				if((GPIOB->IDR & (1<<11)) != 0) 
 				{
 					HAL_Delay(25);
@@ -165,7 +165,7 @@ int main(void)
 			if(LEDtemp == 0) {
 				//Turn on LED 3
 				GPIOC->ODR |= (1<<8);
-				if(step%4 == 0)		//1.000
+				if(step%4 == 0)		//Displays a 1.000 showing what step we are on
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
@@ -182,7 +182,7 @@ int main(void)
 					}
 					}
 				}
-				else if(step%4 == 1)//1.250
+				else if(step%4 == 1)//Displays a 1.250 showing what step we are on
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
@@ -199,7 +199,7 @@ int main(void)
 					}
 					}
 				}
-				else if(step%4 == 2)//1.500
+				else if(step%4 == 2)//Displays a 1.500 showing what step we are on
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 0); Delay(1);
@@ -216,7 +216,7 @@ int main(void)
 						}
 				}
 				}
-				else if(step%4 == 3)//1.750
+				else if(step%4 == 3)//Displays a 1.750 showing what step we are on
 				{
 					Write_7Seg(4, 0); Delay(1);
 					Write_7Seg(3, 5); Delay(1);
